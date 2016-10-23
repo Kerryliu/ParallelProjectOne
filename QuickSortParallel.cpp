@@ -5,6 +5,7 @@
 #include <chrono>   //clock
 #include <numeric>  //average
 #include <pthread.h> //black magic
+#include<iterator>
 
 using namespace std;
 
@@ -53,9 +54,7 @@ int main() {
   ofstream file;
   //write unsorted vector to file
   file.open("qspUnsortedArray.txt");
-  for(const int& i : vect) {
-    file << i << endl;
-  }
+  copy(vect.begin(), vect.end(), ostream_iterator<int>(file, "\n"));
   file.close();
   
   //Do multiple quicksorts depending on size, then get average time:
@@ -70,18 +69,15 @@ int main() {
       pthread_join(i, NULL);
     }
     auto t2 = chrono::high_resolution_clock::now();
-    int difference = chrono::duration_cast<chrono::microseconds>(t2-t1).count();
+    int difference = chrono::duration_cast<chrono::milliseconds>(t2-t1).count();
     meow[i] = difference;
   }
   double average = accumulate(meow.begin(), meow.end(), 0.0)/ meow.size();
-  cout << "Quicksort average duration: " << average << " microseconds" << endl;
+  cout << "Quicksort average duration: " << average << " milliseconds" << endl;
 
   //write sorted vector to file
   file.open("qspSortedArray.txt");
-  for(const int& i : vect) {
-    file << i << endl;
-  }
-  file.close();
+  copy(vect.begin(), vect.end(), ostream_iterator<int>(file, "\n"));
   return 0;
 }
 

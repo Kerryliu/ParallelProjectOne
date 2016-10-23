@@ -5,6 +5,7 @@
 #include <fstream>
 #include <chrono>
 #include <numeric>
+#include<iterator>
 
 using namespace std;
 
@@ -62,16 +63,12 @@ int main() {
   ofstream file;
   file.open("MatrixA.txt");
   for(const auto& i : matrixA) {
-    for(const double& j : i) {
-      file << j << " ";
-    }
+    copy(i.begin(), i.end(), ostream_iterator<double>(file, " "));
     file << endl;
   }
   file.close();
   file.open("Vectorb.txt");
-  for(const double&i : b) {
-    file << i << endl;
-  }
+  copy(b.begin(), b.end(), ostream_iterator<double>(file, "\n"));
   file.close();
 
   //Run through algorithm x times, and get average runtime
@@ -88,9 +85,7 @@ int main() {
 
   //Write calculated y vector to file
   file.open("Vectory.txt"); //hehe... if it succeeds, it's a "vectory"
-  for(double&i : y) {
-    file << i << endl;
-  }
+  copy(y.begin(), y.end(), ostream_iterator<double>(file, "\n"));
   file.close();
   return 0;
 }
@@ -132,6 +127,7 @@ void gaussianElimination(vector<vector<double> >& matrixA, vector<double>& b, ve
       matrixA[i][k] = 0;
     }
   }
+  //Matrix should now be in reduced row echelon form
   for(int k = w-1; k>= 0; k--) { //Back substitution
     b[k] = y[k];
     for(int i = k-1; i >= 0; i--) {

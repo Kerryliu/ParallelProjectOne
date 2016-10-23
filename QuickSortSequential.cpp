@@ -4,6 +4,7 @@
 #include <fstream>  //file rw
 #include <chrono>   //clock
 #include <numeric>  //average
+#include<iterator>
 
 using namespace std;
 
@@ -42,9 +43,7 @@ int main() {
   ofstream file;
   //write unsorted vector to file
   file.open("qssUnsortedArray.txt");
-  for(const int& i : vect) {
-    file << i << endl;
-  }
+  copy(vect.begin(), vect.end(), ostream_iterator<int>(file, "\n"));
   file.close();
   
   //Do multiple quicksorts depending on size, then get average time:
@@ -53,17 +52,15 @@ int main() {
     auto t1 = chrono::high_resolution_clock::now();
     quicksort(vect, 0, size - 1);
     auto t2 = chrono::high_resolution_clock::now();
-    int difference = chrono::duration_cast<chrono::microseconds>(t2-t1).count();
+    int difference = chrono::duration_cast<chrono::milliseconds>(t2-t1).count();
     meow[i] = difference;
   }
   double average = accumulate(meow.begin(), meow.end(), 0.0)/ meow.size();
-  cout << "Quicksort average duration: " << average << " microseconds" << endl;
+  cout << "Quicksort average duration: " << average << " milliseconds" << endl;
 
   //write sorted vector to file
   file.open("qssSortedArray.txt");
-  for(const int& i : vect) {
-    file << i << endl;
-  }
+  copy(vect.begin(), vect.end(), ostream_iterator<int>(file, "\n"));
   file.close();
   return 0;
 }
