@@ -1,23 +1,31 @@
-#include <iostream> //io
-#include <vector>   //vector
-#include <stdlib.h> //rand
-#include <fstream>  //file rw
-#include <chrono>   //clock
+#include <iostream>
+#include <pthread.h>
+#include <vector>
+#include <fstream>
+#include <chrono>
 #include <numeric>  //average
-#include <pthread.h> //black magic
 #include<iterator>
 
+int numthread = 0;
+pthread_mutex_t lock;
 using namespace std;
+vector<int> vect;
 
-void quicksort(vector<int>& vect, int left, int right);
-void* qsp(void* data);
+void quicksort(void* value);
+void* qsp(void* value);
+struct input {
+	vector<int>* vect;
+	int left;
+	int right;
+	input(vector<int>* v, int l, int r) { vect = v;left = l;right = r; }
+};
 
-int main() {
-  //User defined vector size and number of pthreads
+int main()
+{
   int size = 0;
-  int numThreads = 0;
+  int numthreads = 0;
   int repetitions = 0;
-  //Make sure input > 0
+
   while(1) {
     cout << "Enter positive vector size: ";
     cin >> size;
@@ -30,8 +38,8 @@ int main() {
   }
   while(1) {
     cout << "Enter positive number of pthreads: ";
-    cin >> numThreads;
-    if(numThreads > 0) {
+    cin >> numthreads;
+    if(numthreads > 0) {
       break;
     }
     cout << endl;
@@ -45,72 +53,100 @@ int main() {
     cout << endl;
   }
 
-  //Generate random numbers 0~size
-  vector<int> vect(size);
-  for(int& i : vect) {
-    i = rand() % size;
-  }
+	vector<int> vect(size);
+	fstream myfile;
+	myfile.open("input.txt", ios::out);
+  copy(vect.begin(), vect.end(), ostream_iterator<int>(myfile, "\n"));
+	myfile.close();
 
-  ofstream file;
-  //write unsorted vector to file
-  file.open("qspUnsortedArray.txt");
-  copy(vect.begin(), vect.end(), ostream_iterator<int>(file, "\n"));
-  file.close();
-  
-  //Do multiple quicksorts depending on size, then get average time:
+	pthread_mutex_init(&lock,NULL);
+	vector<pthread_t> threadpool(numthreads);
+	vector<input> inputs;
+	vector<int> index(2 * numthreads);
+
+	for (int i = 0; i < numthreads;i++)
+	{
+		index[i] = i * (size / numthreads);
+		index[i + numthreads] = ((i + 1) * (size / numthreads) - 1);
+		inputs.push_back(input(&vect, index[i], index[i+numthreads]));
+	}
+
   vector<int> meow(repetitions);
+  vector<int> final(size);
   for(int i = 0; i < repetitions; i++) {
     auto t1 = chrono::high_resolution_clock::now();
-    pthread_t threads[numThreads];
-    for(pthread_t& i : threads) {
-      pthread_create(&i, NULL, &qsp, &vect);
+    for (int i = 0; i < numthreads;i++)
+    {
+      pthread_create(&threadpool[i], NULL, qsp, &inputs[i]);
     }
-    for(pthread_t& i : threads) {
-      pthread_join(i, NULL);
+    for (int i = 0; i < numthreads;i++)
+    {
+      pthread_join(threadpool[i], NULL);
+    }
+    int hold = 0;
+    int min;
+    for (int i = 0; i < final.size();i++)
+    {
+      min = vect.size()+10;
+      for (int j = 0; j < numthreads;j++)
+      {
+        if (index[j] > index[j + numthreads]) continue;
+        if (min > vect[index[j]] && index[j] <= index[j+numthreads])
+        {
+          min = vect[index[j]];
+          hold = j;
+        }
+      }
+      if (hold == -1)
+        break;
+      final[i] = min;
+      index[hold]++;
     }
     auto t2 = chrono::high_resolution_clock::now();
     int difference = chrono::duration_cast<chrono::milliseconds>(t2-t1).count();
     meow[i] = difference;
   }
   double average = accumulate(meow.begin(), meow.end(), 0.0)/ meow.size();
-  cout << "Quicksort average duration: " << average << " milliseconds" << endl;
+	cout << "Quicksort average duration: " << average << " milliseconds" << endl;
 
-  //write sorted vector to file
-  file.open("qspSortedArray.txt");
-  copy(vect.begin(), vect.end(), ostream_iterator<int>(file, "\n"));
-  return 0;
+	myfile.open("output.txt", ios::out);
+  copy(final.begin(), final.end(), ostream_iterator<int>(myfile, "\n"));
+	myfile.close();
+
+	return 0;
 }
-
-void* qsp(void* data) {
-  vector<int>* vect = (vector<int>*) data;
-  int size = vect->size();
-  quicksort(*vect, 0, size - 1);
-  //pthread_exit(NULL);
+void* qsp(void* values)
+{
+	quicksort(values);
+	return NULL;
 }
+void quicksort(void* values) {
+	input* data = (input*)values;
+	vector<int>& vecRef = *data->vect;
+	int i = data->left;
+	int j = data->right;
+	int pivot = vecRef[(i + j) / 2];
 
-void quicksort(vector<int>& vect, int left, int right) {
-  int i = left;
-  int j = right;
-  int pivot = vect[(i + j)/2];
-
-  while(i <= j) {
-    while(vect[i] < pivot) {
-      i++;
-    }
-    while(vect[j] > pivot) {
-      j--;
-    }
-    if (i <= j) {
-      swap(vect.at(i), vect.at(j));
-      i++;
-      j--;
-    }
-  }
-
-  if (left < j) {
-    quicksort(vect, left, j);
-  }
-  if (i < right) {
-    quicksort(vect, i, right);
-  }
+	while (i <= j) {
+		while (vecRef[i] < pivot) {
+			i++;
+		}
+		while (vecRef[j] > pivot) {
+			j--;
+		}
+		if (i <= j) {
+			swap(vecRef.at(i), vecRef.at(j));
+			i++;
+			j--;
+		}
+	}
+	if (data->left < j)
+	{
+		input potato(&vecRef, data->left, j);
+		quicksort((void*)&potato);
+	}
+	if (i < data->right) {
+		input potato(&vecRef, i, data->right);
+		quicksort((void*)&potato);
+	}
 }
