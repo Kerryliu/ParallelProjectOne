@@ -52,11 +52,11 @@ int main() {
     auto t1 = chrono::high_resolution_clock::now();
     quicksort(vect, 0, size - 1);
     auto t2 = chrono::high_resolution_clock::now();
-    int difference = chrono::duration_cast<chrono::milliseconds>(t2-t1).count();
+    int difference = chrono::duration_cast<chrono::microseconds>(t2-t1).count();
     meow[i] = difference;
   }
   double average = accumulate(meow.begin(), meow.end(), 0.0)/ meow.size();
-  cout << "Quicksort average duration: " << average << " milliseconds" << endl;
+  cout << "Quicksort average duration: " << average << " microseconds" << endl;
 
   //write sorted vector to file
   file.open("qssSortedArray.txt");

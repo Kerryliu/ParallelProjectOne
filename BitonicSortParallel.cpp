@@ -72,11 +72,11 @@ int main() {
     auto t1 = chrono::high_resolution_clock::now();
     bitonicParallel(vect);
     auto t2 = chrono::high_resolution_clock::now();
-    int difference = chrono::duration_cast<chrono::milliseconds>(t2-t1).count();
+    int difference = chrono::duration_cast<chrono::microseconds>(t2-t1).count();
     meow[i] = difference;
   }
   double average = accumulate(meow.begin(), meow.end(), 0.0)/ meow.size();
-  cout << "Bitonic sort average duration: " << average << " milliseconds" << endl;
+  cout << "Bitonic sort average duration: " << average << " microseconds" << endl;
 
   //write sorted vector to file
   file.open("bssSortedArray.txt");
@@ -110,7 +110,7 @@ void* threading(void* data) {
 }
 
 void bitonicMerge(vector<int>& vect, int low, int elements, int offset, bool direction) {
-  pthread_barrier_wait(&barrier);
+  //pthread_barrier_wait(&barrier);
   if(elements > 1) {
     int j = elements/2;
     for(int i = low+offset; i < low+j; i+=numThreads) {

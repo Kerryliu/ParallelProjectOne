@@ -103,11 +103,11 @@ int main()
       index[hold]++;
     }
     auto t2 = chrono::high_resolution_clock::now();
-    int difference = chrono::duration_cast<chrono::milliseconds>(t2-t1).count();
+    int difference = chrono::duration_cast<chrono::microseconds>(t2-t1).count();
     meow[i] = difference;
   }
   double average = accumulate(meow.begin(), meow.end(), 0.0)/ meow.size();
-	cout << "Quicksort average duration: " << average << " milliseconds" << endl;
+	cout << "Quicksort average duration: " << average << " microseconds" << endl;
 
 	myfile.open("output.txt", ios::out);
   copy(final.begin(), final.end(), ostream_iterator<int>(myfile, "\n"));
