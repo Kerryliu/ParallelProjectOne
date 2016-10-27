@@ -1,6 +1,7 @@
 #include <iostream> //io
 #include <vector>   //vector
 #include <stdlib.h> //rand
+#include <pthread.h>
 #include <fstream>  //file rw
 #include <chrono>   //clock
 #include <numeric>  //average
@@ -8,14 +9,20 @@
 
 using namespace std;
 
-void bitonicMerge(vector<int>& vect, int low, int elements, bool direction);
-void bitonicSort(vector<int>& vect, int low, int elements, bool direction);
-void* bsp(void* data);
+void bitonicParallel(vector<int>& vect);
+void bitonicSort(vector<int>& vect, int low, int elements, int offset, bool direction);
+void bitonicMerge(vector<int>& vect, int low, int elements, int offset, bool direction);
+void* threading(void* data);
+int numThreads = 0;
+pthread_barrier_t barrier;
+struct potato{
+  vector<int>* vect;
+  int threadID;
+};
 
 int main() {
   //User defined vector size
   int size = 1;
-  int numThreads = 0;
   int repetitions = 0;
   //Make sure input is a power of 2 and size > 0
   while(1) {
@@ -30,9 +37,9 @@ int main() {
     cout << endl;
   }
   while(1) {
-    cout << "Enter positive number of pthreads: ";
+    cout << "Enter positive number of pthreads that is less than half vector size: ";
     cin >> numThreads;
-    if(numThreads > 0) {
+    if(numThreads < size/2) {
       break;
     }
     cout << endl;
@@ -46,15 +53,16 @@ int main() {
     cout << endl;
   }
 
-  //Generate random numbers 0~size
   vector<int> vect(size);
+
+  //Generate random numbers 0~size
   for(int& i : vect) {
     i = rand() % size;
   }
 
   ofstream file;
   //write unsorted vector to file
-  file.open("bspUnsortedArray.txt");
+  file.open("bssUnsortedArray.txt");
   copy(vect.begin(), vect.end(), ostream_iterator<int>(file, "\n"));
   file.close();
 
@@ -62,13 +70,7 @@ int main() {
   vector<int> meow(repetitions);
   for(int i = 0; i < repetitions; i++) {
     auto t1 = chrono::high_resolution_clock::now();
-    pthread_t threads[numThreads];
-    for(int i = 0; i < numThreads; i++) {
-      pthread_create(&threads[i], NULL, &bsp, &vect);
-    }
-    for(int i = 0; i < numThreads; i++) {
-      pthread_join(threads[i], NULL);
-    }
+    bitonicParallel(vect);
     auto t2 = chrono::high_resolution_clock::now();
     int difference = chrono::duration_cast<chrono::milliseconds>(t2-t1).count();
     meow[i] = difference;
@@ -77,40 +79,58 @@ int main() {
   cout << "Bitonic sort average duration: " << average << " milliseconds" << endl;
 
   //write sorted vector to file
-  file.open("bspSortedArray.txt");
+  file.open("bssSortedArray.txt");
   copy(vect.begin(), vect.end(), ostream_iterator<int>(file, "\n"));
   file.close();
+
   return 0;
 }
 
-void* bsp(void* data) {
-  vector<int>* vect = (vector<int>*) data;
-  int size = vect->size();
-  bitonicSort(*vect, 0, size, true);
-  //pthread_exit(NULL);
+void bitonicParallel(vector<int>& vect) {
+  int l = vect.size();
+  int sectorSize = l/numThreads;
+  struct potato args[numThreads];
+  pthread_t threads[numThreads];
+  pthread_barrier_init(&barrier, NULL, numThreads);
+  for(int i = 0; i < numThreads; i++) {
+    args[i] = {&vect, i};
+    pthread_create(&threads[i], NULL, &threading, (void*) &args[i]);
+  }
+  for(pthread_t& i : threads) {
+    pthread_join(i, NULL);
+  }
 }
 
-void bitonicMerge(vector<int>& vect, int low, int elements, bool direction) {
+void* threading(void* data) {
+  struct potato* stuff = (struct potato*) data;
+  vector<int>* vect = stuff->vect;
+  int size = vect->size();
+  int offset = stuff->threadID;
+  bitonicSort(*vect, 0, size, offset, true);
+}
+
+void bitonicMerge(vector<int>& vect, int low, int elements, int offset, bool direction) {
+  pthread_barrier_wait(&barrier);
   if(elements > 1) {
     int j = elements/2;
-    for(int i = low; i < low+j; i++) {
+    for(int i = low+offset; i < low+j; i+=numThreads) {
       if(direction == (vect[i] > vect[i+j])) {
         swap(vect.at(i), vect.at(i+j));
       }
     }
-    bitonicMerge(vect, low, j, direction);
-    bitonicMerge(vect, low+j, j, direction);
+    bitonicMerge(vect, low, j, offset, direction);
+    bitonicMerge(vect, low+j, j, offset, direction);
   }
 }
 
-void bitonicSort(vector<int>& vect, int low, int elements, bool direction) {
+void bitonicSort(vector<int>& vect, int low, int elements, int offset, bool direction) {
   if(elements > 1) {
     int j = elements/2;
     //Accending half
-    bitonicSort(vect, low, j, true);
+    bitonicSort(vect, low, j, offset, true);
     //Decending half
-    bitonicSort(vect, low+j, j, false);
+    bitonicSort(vect, low+j, j, offset, false);
     //Now put everything into accending
-    bitonicMerge(vect, low, elements, direction);
+    bitonicMerge(vect, low, elements, offset, direction);
   }
 }
